@@ -1,5 +1,5 @@
 """
-This is an empty file for the Pi Camera
+This is a preliminary file for the Pi Camera
 """
 import time
 import picamera
