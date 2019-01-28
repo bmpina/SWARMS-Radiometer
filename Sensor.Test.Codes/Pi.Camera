@@ -6,7 +6,7 @@ import picamera
 with picamera.PiCamera() as camera:
     camera.start_preview()
     try:
-        for i, filename in enumerate(camera.capture_continuous('image{counter:03d}.jpg')):
+        for i, filename in enumerate(camera.capture_continuous('/home/pi/Documents/image{counter:03d}.jpg')):
             print(filename)
             time.sleep(4)
             if i == 75:
