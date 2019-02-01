@@ -9,7 +9,7 @@ import time
 
 handle = ljm.openS("T7", "ANY", "ANY")
 info = ljm.getHandleInfo(handle)
-#print(\"nOpened a LabJack with device type %i, connection type %i,\n" "Serial number %i, IP address %s, Port %i,\nMax bytes per MB %i" %(info[0], info[1], info[2], ljm.numberToIP(info[3]),info[4],info[5]))
+
 name = "AIN0"
 numIterations = 100
 
@@ -43,7 +43,7 @@ while curIteration < numIterations:
         TempC = TempK - 273.15
         print("%s reading: %f V, %f Ohms, %f C,  duration: %0.1f ms,  --skipped intervals: %i" %(name, result, resistance, TempC, duration, numSkippedIntervals))
         
-        #f.write("%s, %0.1f, %0.3f\r\n" %(curTimeStr, duration, result))
+
         lastTick = curTick
         curIteration = curIteration + 1
     except KeyboardInterrupt:
