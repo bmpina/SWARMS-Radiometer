@@ -1,3 +1,57 @@
 """
-This is an empty file for the thermistor
+This is a preliminary file for the thermistor
+
+from labjack import ljm
+import datetime
+import os
+import sys
+import time
+
+handle = ljm.openS("T7", "ANY", "ANY")
+info = ljm.getHandleInfo(handle)
+#print(\"nOpened a LabJack with device type %i, connection type %i,\n" "Serial number %i, IP address %s, Port %i,\nMax bytes per MB %i" %(info[0], info[1], info[2], ljm.numberToIP(info[3]),info[4],info[5]))
+name = "AIN0"
+numIterations = 100
+
+rate = 1000 #in ms
+rateUS = rate*1000
+'''
+appStartTime = datetime.datetime.now()
+startTime = appstarTime.strftime("%Y/%m/%d %I:%M:%S%p")
+timeStr =
+'''
+cwd = os.getcwd()
+
+intervalHandle = 0
+ljm.startInterval(intervalHandle, rateUS)
+curIteration = 0
+numSkippedIntervals = 0
+import numpy as np
+lastTick = ljm.getHostTick()
+duration = 0
+
+while curIteration < numIterations:
+    try:
+        numSkippedIntervals = ljm.waitForNextInterval(intervalHandle)
+        curTick = ljm.getHostTick()
+        duration = (curTick - lastTick)/1000
+        result = ljm.eReadName(handle, name)
+        ADC = 262144
+        resistance = -(10000*result)/(result-3.3)
+        invTemp = 1/(298.15)+1/(3950)*np.log(resistance/10000)
+        TempK = 1/invTemp
+        TempC = TempK - 273.15
+        print("%s reading: %f V, %f Ohms, %f C,  duration: %0.1f ms,  --skipped intervals: %i" %(name, result, resistance, TempC, duration, numSkippedIntervals))
+        
+        #f.write("%s, %0.1f, %0.3f\r\n" %(curTimeStr, duration, result))
+        lastTick = curTick
+        curIteration = curIteration + 1
+    except KeyboardInterrupt:
+        break
+    except Exception:
+        import sys
+        print(sys.exc_info()[1])
+        break
+print("\nFinished")
+
 """
