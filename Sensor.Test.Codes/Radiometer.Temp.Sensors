@@ -1,3 +1,61 @@
 """
 This is an empty file for the radiometer temperature sensors
 """
+from labjack import ljm
+import datetime
+import os
+import sys
+import time
+
+handle = ljm.openS("T7", "ANY", "ANY")
+info = ljm.getHandleInfo(handle)
+name1 = "AIN1"
+name2 = "AIN2"
+numIterations = 100000
+
+rate = 100 #in ms
+rateUS = rate*1000
+
+cwd = os.getcwd()
+
+intervalHandle = 0
+ljm.startInterval(intervalHandle, rateUS)
+curIteration = 0
+numSkippedIntervals = 0
+import numpy as np
+lastTick = ljm.getHostTick()
+duration = 0
+
+while curIteration < numIterations:
+    try:
+        numSkippedIntervals = ljm.waitForNextInterval(intervalHandle)
+        curTick = ljm.getHostTick()
+        duration = (curTick - lastTick)/1000
+        result1 = ljm.eReadName(handle, name1)
+        result2 = ljm.eReadName(handle, name2)
+        ADC = 262144
+        
+        Resistance1 = (result1)/(result1 - 5)
+        CurrentOut1 = result1/10000 #ohms
+        TempOutC1 = (25/0.0002982)*CurrentOut1 + 25
+        Resistance2 = (result2)/(result2 - 5)
+        CurrentOut2 = result2/10000 #ohms
+        TempOutC2 = (25/0.0002982)*CurrentOut2 + 25
+        #TempC = TempK - 273.15
+        
+        print("%s reading: %f V, %f C, duration: %0.1f ms,  --skipped intervals: %i" %(name1, result1, TempOutC1, duration, numSkippedIntervals))
+        print("%s reading: %f V, %f C, duration: %0.1f ms,  --skipped intervals: %i" %(name2, result2, TempOutC2, duration, numSkippedIntervals))
+        #print("%s reading: %f V, duration: %0.1f ms,  --skipped intervals: %i" %(name1, result1, duration, numSkippedIntervals))
+        #print("%s reading: %f V, duration: %0.1f ms,  --skipped intervals: %i" %(name2, result2, duration, numSkippedIntervals))
+      
+      
+        lastTick = curTick
+        curIteration = curIteration + 1
+    except KeyboardInterrupt:
+        break
+    except Exception:
+        import sys
+        print(sys.exc_info()[1])
+        break
+print("\nFinished")
+
