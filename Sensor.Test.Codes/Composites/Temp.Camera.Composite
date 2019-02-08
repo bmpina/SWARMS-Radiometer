@@ -1,0 +1,92 @@
+""" This is a composite file for the thermistor, temperature probes, and camera"""
+
+from labjack import ljm
+import datetime
+import os
+import sys
+import time
+
+from time import sleep
+from picamera import PiCamera
+from datetime import datetime, timedelta
+
+handle = ljm.openS("T7", "ANY", "ANY")
+info = ljm.getHandleInfo(handle)
+name0 = "AIN0"
+name1 = "AIN1"
+name2 = "AIN2"
+numIterations = 10
+
+
+rate = 1000 #in ms
+rateUS = rate*1000
+
+cwd = os.getcwd()
+
+intervalHandle = 0
+ljm.startInterval(intervalHandle, rateUS)
+curIteration = 0
+numSkippedIntervals = 0
+import numpy as np
+lastTick = ljm.getHostTick()
+duration = 0
+
+appStartTime = datetime.now()
+startTimeStr = appStartTime.strftime("%Y/%m/%d %I:%M:%S%p")
+timeStr = appStartTime.strftime("%Y_%m_%d-%I_%M_%S%p")
+
+fileName = timeStr + "-%s-Trial.txt"%(name0+name1+name2)
+filePath = os.path.join(cwd, fileName)
+f = open(filePath, 'w')
+f.write("Time Stamp, Duration(ms), Temp(C), %s" %(name0+name1+name2))
+
+camera = PiCamera()
+def wait(camera):
+    #Calculate the delay to start next image
+    next_im = (datetime.now() + timedelta(seconds = 3)).replace(second=0)
+    delay = (next_im - datetime.now()).seconds
+    sleep(3)
+while curIteration < numIterations:
+    for i, filename in enumerate(camera.capture_continuous('/home/pi/Documents/Camera/image{counter:03d}.jpg')):
+        try:
+            numSkippedIntervals = ljm.waitForNextInterval(intervalHandle)
+            curTick = ljm.getHostTick()
+            duration = (curTick - lastTick)/1000
+            curTime = datetime.now()
+            curTimeStr = curTime.strftime("%Y/%m/%d %I:%M:%S%p")
+            result0 = ljm.eReadName(handle, name0)
+            result1 = ljm.eReadName(handle, name1) #temp1 probe noted by sharpie
+            result2 = ljm.eReadName(handle, name2) #temp2 probe not noted by sharpie
+            ADC = 262144
+            resistance0 = -(10000*result0)/(result0-3.3)
+            invTemp = 1/(298.15)+1/(3950)*np.log(resistance0/10000)
+            Temp0K = 1/invTemp
+            Temp0C = Temp0K - 273.15
+            Resistance1 = (result1)/(result1 - 5)
+            CurrentOut1 = result1/10000 #ohms
+            TempOutC1 = (25/0.0002982)*CurrentOut1 + 22.9 #22 not 25 due to calibration
+            Resistance2 = (result2)/(result2 - 5)
+            CurrentOut2 = result2/10000 #ohms
+            TempOutC2 = (25/0.0002982)*CurrentOut2 + 20.5 #20 not 25 due to calibration
+            print("%s reading: %f V, %f Ohms, %f C,  duration: %0.1f ms,  --skipped intervals: %i" %(name0, result0, resistance0, Temp0C, duration, numSkippedIntervals))
+            print("%s reading: %f V, %f C, duration: %0.1f ms,  --skipped intervals: %i" %(name1, result1, TempOutC1, duration, numSkippedIntervals))
+            print("%s reading: %f V, %f C, duration: %0.1f ms,  --skipped intervals: %i" %(name2, result2, TempOutC2, duration, numSkippedIntervals))
+            print('Captured %s' % filename)
+            wait(camera)
+            if i == 10:
+                break
+            f.write("%s, %0.3f\r\n, %0.3f\r\n, %0.3f\r\n, %0.3f\r\n" %(timeStr, duration, Temp0C, TempOutC1, TempOutC2))
+            lastTick = curTick
+            curIteration = curIteration + 1
+        except KeyboardInterrupt:
+            break
+        except Exception:
+            import sys
+            print(sys.exc_info()[1])
+            break
+print("\nFinished")
+f.close()
+ljm.cleanInterval(intervalHandle)
+ljm.close(handle)
+#when finished save to file, re-run function
+
