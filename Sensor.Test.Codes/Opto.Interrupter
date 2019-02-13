@@ -1,3 +1,50 @@
 """
-This is an empty file for the opto-interrupter
+This is an preliminary file for the opto-interrupter
 """
+from labjack import ljm
+import datetime
+import os
+import sys
+import time
+
+handle = ljm.openS("T7", "ANY", "ANY")
+info = ljm.getHandleInfo(handle)
+
+name3 = "AIN3"
+numIterations = 100000
+
+rate = 100 #in ms
+rateUS = rate*1000
+
+cwd = os.getcwd()
+
+intervalHandle = 0
+ljm.startInterval(intervalHandle, rateUS)
+curIteration = 0
+numSkippedIntervals = 0
+import numpy as np
+lastTick = ljm.getHostTick()
+duration = 0
+
+while curIteration < numIterations:
+    try:
+        numSkippedIntervals = ljm.waitForNextInterval(intervalHandle)
+        curTick = ljm.getHostTick()
+        duration = (curTick - lastTick)/1000
+        result3 = ljm.eReadName(handle, name3)
+        threshold = 0.01
+        print("%s reading: %f V,  duration: %0.1f ms,  --skipped intervals: %i" %(name3, result3, duration, numSkippedIntervals))
+        if result3 > threshold:
+            print(bool, False, "--Calibrating")
+        if result3 < threshold:
+            print(bool, True, "--Outside Data")
+        lastTick = curTick
+        curIteration = curIteration + 1
+    except KeyboardInterrupt:
+        break
+    except Exception:
+        import sys
+        print(sys.exc_info()[1])
+        break
+print("\nFinished")
+
