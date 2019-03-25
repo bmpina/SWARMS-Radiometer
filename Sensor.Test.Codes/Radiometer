@@ -1,3 +1,80 @@
 """
-This is an empty file for the ASU built radiometer
+This is a preliminary file for the ASU built radiometer
 """
+from labjack import ljm
+import datetime
+import os
+import sys
+import time
+
+from time import sleep
+from datetime import datetime, timedelta
+
+handle = ljm.openS("T7", "ANY", "ANY")
+info = ljm.getHandleInfo(handle)
+name4 = "AIN4"
+name5 = "AIN5" 
+name6 = "AIN6" 
+name7 = "AIN7" 
+name8 = "AIN8"
+name9 = "AIN9"
+
+numIterations = 1000
+
+
+rate = 1000 #in ms
+rateUS = rate*1000
+
+cwd = os.getcwd()
+
+intervalHandle = 0
+ljm.startInterval(intervalHandle, rateUS)
+curIteration = 0
+numSkippedIntervals = 0
+import numpy as np
+lastTick = ljm.getHostTick()
+duration = 0
+
+appStartTime = datetime.now()
+startTimeStr = appStartTime.strftime("%Y/%m/%d %I:%M:%S%p")
+timeStr = appStartTime.strftime("%Y_%m_%d-%I_%M_%S%p")
+
+fileName = timeStr + "-%s-Trial.txt"%("radiometer")
+filePath = os.path.join(cwd, fileName)
+f = open(filePath, 'w')
+f.write("Time Stamp, Duration(ms), Temp(C), %s" %("radiometer"))
+
+while curIteration < numIterations:
+    try:
+        numSkippedIntervals = ljm.waitForNextInterval(intervalHandle)
+        curTick = ljm.getHostTick()
+        duration = (curTick - lastTick)/1000
+        curTime = datetime.now()
+        curTimeStr = curTime.strftime("%Y/%m/%d %I:%M:%S%p")
+        result4 = ljm.eReadName(handle, name4) 
+        result5 = ljm.eReadName(handle, name5) 
+        result6 = ljm.eReadName(handle, name6) 
+        result7 = ljm.eReadName(handle, name7) 
+        result8 = ljm.eReadName(handle, name8)
+        result9 = ljm.eReadName(handle, name9)
+            
+        print("%s reading: %f V,  duration: %0.1f ms,  --skipped intervals: %i" %(name4, result4, duration, numSkippedIntervals))
+        print("%s reading: %f V, duration: %0.1f ms,  --skipped intervals: %i" %(name5, result5, duration, numSkippedIntervals))
+        print("%s reading: %f V, duration: %0.1f ms,  --skipped intervals: %i" %(name6, result6, duration, numSkippedIntervals))
+        print("%s reading: %f V, duration: %0.1f ms,  --skipped intervals: %i" %(name7, result7, duration, numSkippedIntervals))
+        print("%s reading: %f V, duration: %0.1f ms,  --skipped intervals: %i" %(name8, result8, duration, numSkippedIntervals))
+        print("%s reading: %f V, duration: %0.1f ms,  --skipped intervals: %i" %(name9, result9, duration, numSkippedIntervals))
+        f.write("%s, %0.3f, %f, %f, %f, %f, %f, %f\r\n" %(timeStr, duration, result4, result5, result6, result7, result8, result9 ))
+        lastTick = curTick
+        curIteration = curIteration + 1
+    except KeyboardInterrupt:
+        break
+    except Exception:
+        import sys
+        print(sys.exc_info()[1])
+        break
+print("\nFinished")
+f.close()
+ljm.cleanInterval(intervalHandle)
+ljm.close(handle)
+#when finished save to file, re-run function
