@@ -11,11 +11,11 @@ import numpy as np
 #Set up file
 cwd = os.getcwd()
 appStartTime = datetime.now()
-startTimeStr = appStartTime.strftime("%Y/%m/%d %I:%M:%S%p")
+startTimeStr = appStartTime.strftime("%Y/%m/%d %I:%M:%S%p") #Year-Month-Day-Hr-Min-Sec Format
 timeStr = appStartTime.strftime("%Y_%m_%d-%I_%M_%S%p")
 fileName = timeStr + "-%s-Trial.txt"%("Radiometer")
-filePath = os.path.join(cwd, fileName)
-fileNameAdded = fileName + '{counter:03d}'
+filePath = os.path.join(cwd, fileName) #Current Work Directory will be in /downloads
+fileNameAdded = fileName + '{counter:03d}' #:03d counter will allow up to 999 loops before overwrite
 filePathAdded = os.path.join(cwd, fileNameAdded)
 
 #Configure port
@@ -26,15 +26,26 @@ deviceType = info[0]
 #aScanListNames = ["AIN0"]         #Scan List names to Stream as Test
 aScanListNames=["AIN0", "AIN3", "AIN4","AIN5","AIN6","AIN7","AIN8","AIN9"]         #Scan List names to Stream for Radiometer, opto, and thermistor
 numAddresses = len(aScanListNames)
-aScanList = ljm.namesToAddresses(numAddresses, aScanListNames)[0] 
-scanRate = 2100 #Scans per second per channel             #THE SCIENCE GOAL IS 2000 Hz :: USING A LARGER SCAN RATE WILL MAKEUP FOR PERFORMANCE 
-numScans = 2101 #Number of scans to perform               #FOR CURRENT LOOP SETUP MUST BE LARGER THAN scanRate :: MAY CHANGE
-MAX_REQUESTS = 20  # The number of eStreamRead calls that will be performed.          #DUE TO CHANGE DEPENDING ON NEED FOR TIME 
-scansPerRead = int(scanRate) #toy with dividing by 2 here
+aScanList = ljm.namesToAddresses(numAddresses, aScanListNames)[0]
+
+scanRate = 2100 #Scans per second per channel
+#THE SCIENCE GOAL IS 2000 Hz :: USING A LARGER SCAN RATE WILL MAKEUP FOR PERFORMANCE 
+
+numScans = 2101 #Number of scans to perform
+#FOR CURRENT LOOP SETUP MUST BE LARGER THAN scanRate :: MAY CHANGE
+
+MAX_REQUESTS = 80  # The number of eStreamRead calls that will be performed.
+#NEED TO COUNT BY (NumChannel*NumSecond) DESIRED 
+
+scansPerRead = int(scanRate) #Notated as skipping in intervals of 8,
+                             #but this is accounted for by the number of channels
+                             #it is reading out; no need to worry about missing data
+
 
 ###MAY NEED TO STOP STREAM BEFORE IT STARTS DEPENDING ON ACTIVE STREAM ERROR 2605 FROM PREVIOUS TRIAL###
 #ljm.eStreamStop(handle)
 ###TESTING REQUIRED###
+
 
 while numScans > scanRate:
     with io.open(filePath, 'a') as f:
@@ -55,6 +66,7 @@ while numScans > scanRate:
             scanRate = ljm.eStreamStart(handle, scansPerRead, numAddresses, aScanList, scanRate)
             print("\nStream started with a scan rate of %0.0f Hz." % scanRate)
             f.write("\nStream started with a scan rate of %0.0f Hz." % scanRate)
+            f.write("\n10-Second trial w/ 8-channels")
             print("\nPerforming %i stream reads." % MAX_REQUESTS)
             f.write("\nPerforming %i stream reads." % MAX_REQUESTS)
             start = datetime.now()
