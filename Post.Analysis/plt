@@ -1,0 +1,13 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import square_demod as s
+aData = np.loadtxt("2019_06_04-02_56_24PM-Radiometer-aData.csv",delimiter= ',') #Change to file name that has data in question
+plt.clf()
+plt.figure(1)
+#plt.plot((aData[0::1]))
+plt.plot((aData[0::2]))
+plt.plot((aData[1::2]))
+c,s,icos,isin = s.square_demod(aData[0::2], aData[1::2]>2.5)
+plt.figure(2)
+plt.plot(c)
+plt.show()
