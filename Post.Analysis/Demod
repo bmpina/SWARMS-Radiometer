@@ -1,0 +1,94 @@
+import numpy as nm
+from scipy.interpolate import interp1d
+import pylab
+
+def square_demod(x,b):
+    # Sean Bryan
+    # compare to square_demod.m in tes_analysis written in Matlab
+    #
+    # inputs: x - timestream (right now, must be a N-element array, can't handle Nbolos*Nsamples arrays...would be an easy upgrade though)
+    #         b - chop reference timestream, same length as x
+    #
+    # outputs: c,s       - in-phase and 90-degree-out-of-phase lockin outputs, one output sample per chop cycle
+    #          icos,isin - indices of the start of the chop cycles (icos is in-phase, isin is 90-degrees-out-of-phase)
+
+    # threshold b at 0.5, keeping it numeric instead of boolean
+    # because of all of the arithmetic with indices in this algorithm,
+    # I won't store booleans in arrays and instead will do the matlab-style thing and have arrays with 1.0 and 0.0 in them.
+    # (note that the array itself contains doubles, but a construct like b!=0 turns it back into an array of booleans)
+    b = 1.0 * (b >= 0.5);
+    
+    # construct b90, 90 degrees out of phase with b
+    bdiff = (nm.append(0.0,nm.diff(b)) + nm.append(nm.diff(b),0.0) ) / 2.0
+    b90 = (-1.0) * bdiff
+    jj = nm.arange(len(b90))
+    interp_func = interp1d(jj[b90!=0],b90[b90!=0],kind='nearest',bounds_error=False)
+    b90[b90==0] = interp_func(jj[b90==0] + 1.0e-5*(nm.random.rand(nm.sum(b90==0)) - 0.5))
+    b90 = 1.0 * (b90 >= 0.5)
+    
+    # construct the four phases
+    cphase = []
+    cphase.append(1.0*((b==0) & (b90!=0)))
+    cphase.append(1.0*((b==0) & (b90==0)))
+    cphase.append(1.0*((b!=0) & (b90==0)))
+    cphase.append(1.0*((b!=0) & (b90!=0)))   
+    
+    # find the point just before zero phase and mid-phase
+    clastsamp = nm.zeros(len(b))
+    clastsamp[-1] = 1.0;
+    bnext = nm.append(b[1:],0.0)
+    czerophase = 1.0*((b!=0) & (bnext==0))
+    cmidphase  = 1.0*((b==0) & (bnext!=0))
+    b90next = nm.append(b90[1:],0.0)
+    cquartphase = 1.0*((b90!=0) & (b90next==0) & (clastsamp==0))
+    cthreephase = 1.0*((b90==0) & (b90next!=0) & (clastsamp==0))
+    
+    # normalize the four phases in each cycle
+    normphase = nm.zeros(len(b))
+    for iph in range(4):
+        clast = nm.append(0.0,cphase[iph][0:-1])
+        cnext = nm.append(cphase[iph][1:],0.0)
+        c0 = 1.0*((cphase[iph]!=0) & (clast==0))
+        c9 = 1.0*((cphase[iph]!=0) & (cnext==0))
+        n = nm.zeros(len(c0))
+        n[c0!=0] = nm.array(nm.where(c9!=0))[0] -  nm.array(nm.where(c0!=0))[0] + 1.0
+        while nm.sum( 1.0*((n==0) & (cphase[iph]!=0)) ) != 0:
+            nlast = nm.append(0.0,n[0:-1])
+            tmp = 1.0*((n==0) & (cphase[iph]!=0))
+            n[tmp!=0] = nlast[tmp!=0]
+        normphase[cphase[iph]!=0] = 1.0 / n[cphase[iph]!=0]
+    
+    # construct cos weightings
+    ycos = nm.zeros(len(b))
+    ycos[cphase[0]!=0] = -1.0
+    ycos[cphase[1]!=0] = -1.0
+    ycos[cphase[2]!=0] =  1.0
+    ycos[cphase[3]!=0] =  1.0
+    ycos = ycos * normphase
+    # and sum up
+    csum = nm.cumsum(ycos * x)
+    c = nm.diff(nm.append(0.0,csum[cquartphase!=0])) / 2.0
+    
+    # construct sin weightings
+    ysin = nm.zeros(len(b))
+    ysin[cphase[0]!=0] =  1.0
+    ysin[cphase[1]!=0] = -1.0
+    ysin[cphase[2]!=0] = -1.0
+    ysin[cphase[3]!=0] =  1.0
+    ysin = ysin * normphase
+    # and sum up
+    ssum = nm.cumsum(ysin * x)
+    s = nm.diff(nm.append(0.0,ssum[cmidphase!=0])) / 2.0
+    
+    # find sample indices
+    im = nm.where(cmidphase!=0)[0]
+    iz = nm.where(czerophase!=0)[0]
+    iq = nm.where(cquartphase!=0)[0]
+    i3 = nm.where(cthreephase!=0)[0]
+    
+    icos = nm.round((iq + nm.append(0.0,iq[0:-1]) + 1.0) / 2.0 + 1.0e-5*(nm.random.rand(len(iq)) - 0.5))
+    isin = nm.round((im + nm.append(0.0,im[0:-1]) + 1.0) / 2.0 + 1.0e-5*(nm.random.rand(len(im)) - 0.5))
+    
+     
+    return c,s,icos,isin
+
