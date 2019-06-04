@@ -1,0 +1,69 @@
+# following suggested data format -- 
+'''
+FIRST 
+'''
+#record type indicator (byte 1)
+from recordtype import recordtype
+
+Payload = recordtype('Payload', 'Instrument')
+Payload1 = Payload("SWARMS', 'Thermistor')
+Payload2 = Payload("SWARMS', 'Temp_Probe_1')
+Payload3 = Payload("SWARMS', 'Temp_Probe_2')
+Payload4 = Payload("SWARMS', 'Opto_Interrupter')
+Payload5 = Payload("SWARMS', 'Pi_Camera')
+Payload6 = Payload("SWARMS', 'Radiometer')
+Payload7 = Payload("SWARMS', 'Linear_Regulator')
+
+#example print(Payload1)
+'''
+SECOND
+'''
+#Timestamp (seconds since January 1, 1970) (byte 2-5)
+import time
+int(time.time()) #seconds since the epoch
+#print(int(time.time()))
+'''
+THIRD
+'''
+#Timestamp (nanoseconds past the last second) (byte 6-9)
+time.time_ns() # will return integer number of nanoseconds since epoch
+def nanoDif;
+    int(time.time()) * 1E9 #integer value of nanoseconds since epoch
+    int(time.time()) -= int(time.tim_ns())
+print(nanoDif)
+'''
+FOURTH
+'''
+#Record size (byte 10-11)
+import os
+sum(os.path.getsize(f) for f in os.listdir('.') if os.path.isfile(f))
+#print sum(...)
+'''
+FIFTH
+'''
+#Least significant 8 bits of the record checksum (byte 12)
+# returns total as checksum
+# input - string
+def checksum(str):
+    return reduce(operator.add, map(ord, str))
+
+# returns total mod 256 as checksum
+# input - string
+def checksum256(str):
+    return reduce(operator, map(ord, str)) % 256
+
+# totals a list of numbers
+# input - list or tuple of numbers
+def totalList(list):
+    return reduce(operator.add, list)
+
+# returns the average of a list of numbers
+# input - list or tuple of numbers
+def averageList(list):
+    return reduce(operator.add, list) / len(list)
+
+'''
+SIXTH
+'''
+#data (byte 13-n)
+#this will contain flight code printouts
