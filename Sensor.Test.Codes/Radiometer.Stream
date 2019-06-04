@@ -23,8 +23,8 @@ handle = ljm.openS("T7", "ANY", "ANY")
 info = ljm.getHandleInfo(handle)
 name = "AIN0"
 deviceType = info[0]
-#aScanListNames = ["AIN0"]         #Scan List names to Stream as Test
-aScanListNames=["AIN0", "AIN3", "AIN4","AIN5","AIN6","AIN7","AIN8","AIN9"]         #Scan List names to Stream for Radiometer, opto, and thermistor
+aScanListNames = ["AIN0"]         #Scan List names to Stream as Test
+#aScanListNames=["AIN0", "AIN3", "AIN4","AIN5","AIN6","AIN7","AIN8","AIN9"]         #Scan List names to Stream for Radiometer, opto, and thermistor
 numAddresses = len(aScanListNames)
 aScanList = ljm.namesToAddresses(numAddresses, aScanListNames)[0]
 
@@ -34,8 +34,9 @@ scanRate = 2100 #Scans per second per channel
 numScans = 2101 #Number of scans to perform
 #FOR CURRENT LOOP SETUP MUST BE LARGER THAN scanRate :: MAY CHANGE
 
-MAX_REQUESTS = 80  # The number of eStreamRead calls that will be performed.
-#NEED TO COUNT BY (NumChannel*NumSecond) DESIRED 
+MAX_REQUESTS = 30  # The number of eStreamRead calls that will be performed.
+#NEED TO COUNT BY (NumChannel*NumSecond) DESIRED == 80 requests equals 10 seconds for 8 channels
+#four seconds possible outcome
 
 scansPerRead = int(scanRate) #Notated as skipping in intervals of 8,
                              #but this is accounted for by the number of channels
@@ -66,9 +67,10 @@ while numScans > scanRate:
             scanRate = ljm.eStreamStart(handle, scansPerRead, numAddresses, aScanList, scanRate)
             print("\nStream started with a scan rate of %0.0f Hz." % scanRate)
             f.write("\nStream started with a scan rate of %0.0f Hz." % scanRate)
-            f.write("\n10-Second trial w/ 8-channels")
+            f.write("\n30-Second trial with 1-channels")  #Keep up with number of channels and length of trial
             print("\nPerforming %i stream reads." % MAX_REQUESTS)
             f.write("\nPerforming %i stream reads." % MAX_REQUESTS)
+            f.write("\n")
             start = datetime.now()
             totScans = 0
             totSkip = 0  # Total skipped samples
@@ -84,7 +86,7 @@ while numScans > scanRate:
                 curSkip = aData.count(-9999.0)
                 totSkip += curSkip
                 print("\neStreamRead %i" % i)
-                f.write("\neStreamRead %i" % i)
+                f.write("\neStreamRead %i" % i)   #Header // 1st run self-check
                 ainStr = ""
                 for j in range(0, numAddresses):
                     ainStr += "%s = %0.5f, " % (aScanListNames[j], aData[j])
@@ -96,12 +98,12 @@ while numScans > scanRate:
                           "%i" % (curSkip/numAddresses, ret[1], ret[2]))
                     i += 1
                 end = datetime.now()
-                print("\nTotal scans = %i" % (totScans))
+                print("\nTotal scans = %i" % (totScans))    #Notate shortcomings
                 f.write("\nTotal scans = %i" % (totScans))
                 tt = (end - start).seconds + float((end - start).microseconds) / 1000000
                 print("Time taken = %f seconds" % (tt))
                 f.write("Time taken = %f seconds" % (tt))
-                print("LJM Scan Rate = %f scans/second" % (scanRate))
+                print("LJM Scan Rate = %f scans/second" % (scanRate)) 
                 f.write("LJM Scan Rate = %f scans/second" % (scanRate))
                 print("Timed Scan Rate = %f scans/second" % (totScans / tt))
                 f.write("Timed Scan Rate = %f scans/second" % (totScans / tt))
@@ -112,12 +114,16 @@ while numScans > scanRate:
                 f.write("\nData")
                 #np.ndarray.tofile(np.array(aData),sep=";",format="%s")
                 #X = np.array(aData).reshape(int(scans),8)        #Three lines for reformatting data from list format into an array 
-                for item in aData:    #change to X if need                               #after in array turn into matrix corresponding to NumChannels
-                    f.write("%s\n" % item)                       #can remove for flight, more for help in analyzing data
-                #f.write(str(aData))           #Writes data as list
+                #for item in aData:    #change to X if need        #after in array turn into matrix corresponding to NumChannels
+                 #   f.write("%s\n" % item)                        #can remove for flight, more for help in analyzing data
+                x=0
+                x += i - 1
+                f.write("%x" %x) #notates the numbered list per stream readout
+                f.write(str(aData)) #Writes data as list
+                f.write("\n")
                 #f.write("\nData-Channel")     
                 #f.write("%s = %0.5f, " % (aScanList, aData[j])) #Ideally sets abbreviated header, not complete 
-            #self check
+    #error self check
         except ljm.LJMError:
             ljme = sys.exc_info()[1]
             print(ljme)
@@ -125,7 +131,7 @@ while numScans > scanRate:
             e = sys.exc_info()[1]
             print(e)  
         try:
-            print("\nStop Stream")
+            print("\nStop Stream")  #completion self check
             f.write("\nStop Stream")
             ljm.eStreamStop(handle)
             break 
@@ -138,7 +144,7 @@ while numScans > scanRate:
             print(e)
             break 
 #close out
-print("\nFinished")
+print("\nFinished") 
 #f.write("\nFinished")
 f.close()       
 sys.exit()
