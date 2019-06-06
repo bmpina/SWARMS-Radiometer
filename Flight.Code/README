@@ -1,0 +1,1 @@
+Two Flight codes have been designed with and without the Raspberry Pi Camera V.2 module due to an update from 4.14 Linux to 4.19 Linux which replace the i2c ports that the Pi Camera utilizes and maps it to GPIO pin 0 as well as GPio pin 28; leading to error.  
