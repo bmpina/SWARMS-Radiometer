@@ -1,0 +1,218 @@
+from labjack import ljm
+import datetime
+import os
+import sys
+import time
+from time import sleep
+from picamera import PiCamera
+from datetime import datetime, timedelta
+import io
+import numpy as np
+
+#Set up files for data aquisition
+cwd = os.getcwd()
+appStartTime = datetime.now()
+startTimeStr = appStartTime.strftime("%Y/%m/%d %I:%M:%S%p") #Year-Month-Day-Hr-Min-Sec Format
+timeStr = appStartTime.strftime("%Y_%m_%d-%I_%M_%S%p")
+fileName = timeStr + "-%s-Metadata.txt"%("Radiometer")
+filePath = os.path.join(cwd, fileName) #Current Work Directory will be in /downloads
+fileNameAdded = fileName + '{counter:03d}' #:03d counter will allow up to 999 loops before overwrite
+filePathAdded = os.path.join(cwd, fileNameAdded)
+#All data except stream (MetaData) will go into .txt
+#..._aData is going to be a seperate csv file for Pandas to operate on
+fileName_aData = timeStr + "-%s-aData.csv"%("Radiometer")
+filePath_aData = os.path.join(cwd, fileName_aData) 
+fileNameAdded_aData = fileName_aData + '{counter:03d}' 
+filePathAdded_aData = os.path.join(cwd, fileNameAdded_aData)
+
+#port configuration
+handle = ljm.openS("T7", "ANY", "ANY")
+info = ljm.getHandleInfo(handle)
+name0 = "AIN0" #thermistor
+name1 = "AIN1" #temp1 probe noted by sharpie
+name2 = "AIN2" #temp2 probe not noted by sharpie
+#name3 = "AIN3" #optointerrupter
+numIterations = 900 #900 = 1 hr
+
+#non-stream configuration
+rate = 1000 #in ms
+rateUS = rate*1000
+intervalHandle = 0
+ljm.startInterval(intervalHandle, rateUS)
+curIteration = 0
+numSkippedIntervals = 0
+import numpy as np
+lastTick = ljm.getHostTick()
+duration = 0
+camera = PiCamera()
+def wait(name0, name1, name2, camera):
+    #Calculate the delay to start next image
+    next_im = (datetime.now() + timedelta(seconds = 0.1)).replace(second=0)
+    delay = (next_im - datetime.now()).seconds
+    sleep(0.1)
+
+#stream configuration
+aScanListNames=["AIN3", "AIN4","AIN5","AIN6","AIN7","AIN8","AIN9"]         #Scan List names to Stream for Radiometer and opto
+numAddresses = len(aScanListNames)
+aScanList = ljm.namesToAddresses(numAddresses, aScanListNames)[0]
+scanRate = 2100 #Scans per second per channel
+#THE SCIENCE GOAL IS 2000 Hz :: USING A LARGER SCAN RATE WILL MAKEUP FOR PERFORMANCE 
+
+numScans = 2101 #Number of scans to perform
+#FOR CURRENT LOOP SETUP MUST BE LARGER THAN scanRate :: MAY CHANGE
+
+MAX_REQUESTS = 28  # The number of eStreamRead calls that will be performed.
+#NEED TO COUNT BY (NumChannel*NumSecond) DESIRED == 70 requests equals 10 seconds for 7 channels
+#four seconds possible outcome -- 7*4=28
+
+scansPerRead = int(scanRate) #Notated as skipping in intervals of 7,
+                             #but this is accounted for by the number of channels
+                             #it is reading out; no need to worry about missing data
+
+###MAY NEED TO STOP STREAM BEFORE IT STARTS DEPENDING ON ACTIVE STREAM ERROR 2605 FROM PREVIOUS TRIAL###
+#ljm.eStreamStop(handle)
+###TESTING REQUIRED###
+
+
+#start loop for non-stream instrumentation
+while curIteration < numIterations:
+    for i, filename in enumerate(camera.capture_continuous(filePath + 'image{counter:003d}.jpg')):  
+       with io.open(filePath, 'a') as f:
+           try:
+               f.write("Non-Stream Metadata, %s %s %s " %(name0, name1, name2))
+               numSkippedIntervals = ljm.waitForNextInterval(intervalHandle)
+               curTick = ljm.getHostTick()
+               duration = (curTick - lastTick)/1000
+               curTime = datetime.now()
+               curTimeStr = curTime.strftime("%Y/%m/%d %I:%M:%S%p")
+               result0 = ljm.eReadName(handle, name0) #thermistor
+               result1 = ljm.eReadName(handle, name1) #temp1 probe noted by sharpie
+               result2 = ljm.eReadName(handle, name2) #temp2 probe not noted by sharpi
+               ADC = 262144 #18-bit T7
+               resistance0 = -(10000*result0)/(result0-5) #thermistorResistance
+               invTemp = 1/(298.15)+1/(3950)*np.log(resistance0/10000)
+               Temp0K = 1/invTemp
+               Temp0C = Temp0K - 273.15 #thermistorCelsius
+               Resistance1 = (result1)/(result1 - 5) #tempProbe1Resistance
+               CurrentOut1 = result1/10000 #ohms
+               TempOutC1 = (25/0.0002982)*CurrentOut1 + 22.9 #22 not 25 due to calibration
+               Resistance2 = (result2)/(result2 - 5) #tempProbe2Resistance
+               CurrentOut2 = result2/10000 #ohms
+               TempOutC2 = (25/0.0002982)*CurrentOut2 + 20.5 #20 not 25 due to calibration
+               print("%s reading: %f V, %f Ohms, %f C,  duration: %0.1f ms,  --skipped intervals: %i" %(name0, result0, resistance0, Temp0C, duration, numSkippedIntervals))
+               print("%s reading: %f V, %f C, duration: %0.1f ms,  --skipped intervals: %i" %(name1, result1, TempOutC1, duration, numSkippedIntervals))
+               print("%s reading: %f V, %f C, duration: %0.1f ms,  --skipped intervals: %i" %(name2, result2, TempOutC2, duration, numSkippedIntervals))
+               print('Captured %s' % filename)
+               f.write('\nCaptured %s' % filename)
+               lastTick = curTick
+               curIteration = curIteration + 1
+               f.write("%s\nduration = %0.3f, Number of Skipped Intervals=%i\nAIN0=%0.3f, AIN1=%0.3f, AIN2=%0.3f\n" %(timeStr, duration, numSkippedIntervals, Temp0C, TempOutC1, TempOutC2))
+               wait(name0, name1, name2, camera)
+               print("waiting")
+               while numScans > scanRate:
+                   with io.open(filePath, 'a') as f:
+                       f = io.open(filePath, 'a')
+                       f_aData = io.open(filePath_aData, 'a')
+                       try:
+                           #Ensure triggered Stream is disabled
+                           ljm.eWriteName(handle,"STREAM_TRIGGER_INDEX",0)
+                           #Ensure internally-clocked stream
+                           ljm.eWriteName(handle,"STREAM_CLOCK_SOURCE",0)
+                           
+                           aNames = ["AIN_ALL_RANGE", "STREAM_SETTLING_US", "STREAM_RESOLUTION_INDEX"]
+                           #RANGE WILL REFLECT EXPECTED VOLTAGES CURRENTLY 10.0 FOR T7 DEFAULT
+                           #SETTLING CAN RANGE FROM 0-4400   #RESOLUTION INDEX 0 WILL YIELD FASTEST STREAM
+                           aValues = [10.0, 0, 0]
+                           numFrames = len(aNames)
+                           ljm.eWriteNames(handle, numFrames, aNames, aValues)
+                           
+                           # Configure and start stream
+                           scanRate = ljm.eStreamStart(handle, scansPerRead, numAddresses, aScanList, scanRate)
+                           print("\nStream started with a scan rate of %0.0f Hz." % scanRate)
+                           f.write("\nStream started with a scan rate of %0.0f Hz." % scanRate)
+                           f.write("\n30-Second trial with 1-channels")  #Keep up with number of channels and length of trial
+                           print("\nPerforming %i stream reads." % MAX_REQUESTS)
+                           f.write("\nPerforming %i stream reads." % MAX_REQUESTS)
+                           f.write("\n")
+                           start = datetime.now()
+                           totScans = 0
+                           totSkip = 0  # Total skipped samples
+                           i = 1
+                           while i <= MAX_REQUESTS:     #FOR MULTIPLE SCAN QUERY  ::  DUE TO BE TESTED
+                               ret = ljm.eStreamRead(handle)
+                               aData = ret[0]
+                               scans = len(aData) / numAddresses
+                               totScans += scans
+                                   # Count the skipped samples which are indicated by -9999 values. Missed
+                                   # samples occur after a device's stream buffer overflows and are
+                                   # reported after auto-recover mode ends.
+                               curSkip = aData.count(-9999.0)
+                               totSkip += curSkip
+                               print("\neStreamRead %i" % i)
+                               f.write("\neStreamRead %i" % i)   #Header // 1st run self-check
+                               ainStr = ""
+                               for j in range(0, numAddresses):
+                                   ainStr += "%s = %0.5f, " % (aScanListNames[j], aData[j])
+                                   print("  1st scan out of %i: %s" % (scans, ainStr))
+                                   f.write("\n  1st scan out of %i: %s" % (scans, ainStr))
+                                   print("  Scans Skipped = %0.0f, Scan Backlogs: Device = %i, LJM = "
+                                         "%i" % (curSkip/numAddresses, ret[1], ret[2]))
+                                   f.write("\n  Scans Skipped = %0.0f, Scan Backlogs: Device = %i, LJM = "
+                                           "%i" % (curSkip/numAddresses, ret[1], ret[2]))
+                                   i += 1
+                               end = datetime.now()
+                               print("\nTotal scans = %i" % (totScans))    #Notate shortcomings
+                               f.write("\nTotal scans = %i" % (totScans))
+                               tt = (end - start).seconds + float((end - start).microseconds) / 1000000
+                               print("Time taken = %f seconds" % (tt))
+                               f.write("Time taken = %f seconds" % (tt))
+                               print("LJM Scan Rate = %f scans/second" % (scanRate))
+                               f.write("LJM Scan Rate = %f scans/second" % (scanRate))
+                               print("Timed Scan Rate = %f scans/second" % (totScans / tt))
+                               f.write("Timed Scan Rate = %f scans/second" % (totScans / tt))
+                               print("Timed Sample Rate = %f samples/second" % (totScans * numAddresses / tt))
+                               f.write("Timed Sample Rate = %f samples/second" % (totScans * numAddresses / tt))
+                               print("Skipped scans = %0.0f" % (totSkip / numAddresses))
+                               f.write("Skipped scans = %0.0f" % (totSkip / numAddresses))
+                               f.write("\nData")
+                               x = int((i - 1)/7) #denominator number is particular to number of channels being streamed = numAddresses
+                               f.write("%x" %x) #notates the numbered list per stream readout
+                               f_aData.write(str(aData)[1:-1])
+                               f_aData.write(',')
+                               f.write("\n")
+                              #f.flush()
+                              #f_aData.flush()    #flush needs to be tested
+                       #error self check
+                       except ljm.LJMError:
+                           ljme = sys.exc_info()[1]
+                           print(ljme)
+                       except Exception:
+                           e = sys.exc_info()[1]
+                           print(e)
+                       try:
+                           print("\nStop Stream")  #completion self check
+                           f.write("\nStop Stream\n")
+                           ljm.eStreamStop(handle)
+                           break
+                       except ljm.LJMError:
+                           ljme = sys.exc_info()[1]
+                           print(ljme)
+                           break
+                       except Exception:
+                           e = sys.exc_info()[1]
+                           print(e)
+                           break
+           except KeyboardInterrupt:
+               break
+           except Exception:
+               import sys
+               print(sys.exc_info()[1])
+               break
+print("\nFinished")
+f.close()
+ljm.cleanInterval(intervalHandle)
+ljm.close(handle)
+sys.exit()
+               
+                            
+                               
