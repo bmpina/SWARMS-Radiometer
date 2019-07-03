@@ -16,5 +16,7 @@
 
 # Print the IP address
 #python3 /home/pi/Downloads/Python_LJM_2018_10_19/Temp.Opto.Camera.Composite.py & > /dev/null 2>&1 &
-
+python3 /home/pi/DOwnloads/Python_LJM_2018_10_19/flight.rough.py &
+#exit 0
+#!/bin/bash
 exit 0
