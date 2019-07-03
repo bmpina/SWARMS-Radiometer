@@ -1,0 +1,16 @@
+### systemctl service unit for rc.local to run on bootup
+
+[Unit]
+Description = /etc/rc.local initialization and compatibility
+ConditionPathExists = /etc/rc.local
+
+[Service]
+Type = forking
+ExecStart = /bin/bash /etc/rc.local
+ExecStop = 
+TimeoutSec = 0
+StandardOutput = tty
+RemainAfterExit = yes
+
+[Install]
+WantedBy = multi-user.target
