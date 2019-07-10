@@ -1,13 +1,149 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import square_demod as s
-aData = np.loadtxt("2019_06_04-02_56_24PM-Radiometer-aData.csv",delimiter= ',') #Change to file name that has data in question
+aData = np.loadtxt("2019_07_08-05_37_07PM-Radiometer-Stream.csv", delimiter= ',') #Change to file name that has data in question
 plt.clf()
-plt.figure(1)
-#plt.plot((aData[0::1]))
-plt.plot((aData[0::2]))
-plt.plot((aData[1::2]))
-c,s,icos,isin = s.square_demod(aData[0::2], aData[1::2]>2.5)
-plt.figure(2)
-plt.plot(c)
+plt.ion()
 plt.show()
+plt.figure(1)
+print('Initializing reference frame')
+plt.plot((aData[0::7]), label="Opto"); print('chop done') #opto
+plt.plot((aData[6::7]), label="THRU-AIN9"); print('1 done') #radiometer6(AIN9) --freq=
+plt.plot((aData[5::7]), label="182GHz-AIN8"); print('2 done') #radiometer5(AIN8) --freq=
+plt.plot((aData[4::7]), label="176GHz-AIN7"); print('3 done') #radiometer4(AIN7) --freq= 
+plt.plot((aData[3::7]), label="170GHz-AIN6"); print('4 done') #radiometer3(AIN6) --freq=
+plt.plot((aData[2::7]), label="164GHz-AIN5"); print('5 done') #radiometer2(AIN5) --freq=
+plt.plot((aData[1::7]), label="158GHz-AIN4"); print('6 done') #radiometer1(AIN4) --freq=
+plt.legend()
+plt.xlabel('Samples per Second per Channel (s^-1)')
+plt.ylabel('Voltage (V)')
+plt.title('Radiometer + Opto Stream')
+print('Reference frame done')
+
+
+print('Starting demod')
+b = 1.0*(aData[0::7] > 2.5);
+c1,s1,icos1,isin1 = s.square_demod(aData[1::7], b); print('1 done')
+c2,s2,icos2,isin2 = s.square_demod(aData[2::7], b); print('2 done')
+c3,s3,icos3,isin3 = s.square_demod(aData[3::7], b); print('3 done')
+c4,s4,icos4,isin4 = s.square_demod(aData[4::7], b); print('4 done')
+c5,s5,icos5,isin5 = s.square_demod(aData[5::7], b); print('5 done')
+c6,s6,icos6,isin6 = s.square_demod(aData[6::7], b); print('6 done')
+print('Demod finished')
+
+print('Intializing second frame')
+plt.figure(2)
+plt.plot(c6, label="Demodulated THRU-AIN9"); print('1 done')
+plt.plot(c5, label="Demodulated 182GHz-AIN8"); print('2 done')
+plt.plot(c4, label="Demodulated 176GHz-AIN7"); print('3 done')
+plt.plot(c3, label="Demodulated 170GHz-AIN6"); print('4 done')
+plt.plot(c2, label="Demodulated 164GHz-AIN5"); print('5 done')
+plt.plot(c1, label="Demodulated 158GHz-AIN4"); print('6 done')
+plt.legend()
+plt.xlabel('Samples per Second (7000 s^-1)')
+plt.ylabel('Change in Voltage (dV)')
+plt.title('Demodulated Radiometer Stream with Opto-Interrupter Reference')
+plt.show()
+print('Second frame done')
+def find_ln2_and_calibrate(demod_v):
+	# v can be a real signal or a complex signal from the full output of square_demod
+
+	# skip the first and last few samples
+	# assume that %5 or so of the data has the calibration load present
+	# set the threshold to half that value
+	threshold = 0.5*np.percentile(np.abs(demod_v[5:-5]),95)
+
+	# find the places where the signal is above the threshold
+	iln2 = np.where(np.abs(demod_v) > np.abs(threshold))[0]
+
+	# require the places above the threshold to be contiguous
+	# i.e. no gaps
+	iln2 = iln2[np.where(np.diff(iln2)==1)]
+
+	# find the indices after the last ln2 point
+	# to the end of the array
+	iamb = np.arange(np.max(iln2)+50,len(demod_v)-1)
+
+	# find the mean (complex, or real) value of the signal with the load present
+	ln2_voltage = np.mean(demod_v[iln2])
+
+	# find the mean (complex, or real) value of the signal at ambient
+	amb_voltage = np.mean(demod_v[iamb])
+
+	# scale into kelvin
+	kelvin_all = np.real((demod_v-amb_voltage)*(77-293)/ln2_voltage + 293)
+
+	# select out just the run after calibration
+	kelvin_end = kelvin_all[iamb]
+
+	return kelvin_all,kelvin_end,iamb
+
+K_thru_all,K_thru,ind_thru = find_ln2_and_calibrate(c6+1j*s6)
+K_182_all,K_182,ind_182 = find_ln2_and_calibrate(c5+1j*s5)
+K_176_all,K_176,ind_176 = find_ln2_and_calibrate(c4+1j*s4)
+K_170_all,K_170,ind_170 = find_ln2_and_calibrate(c3+1j*s3)
+K_164_all,K_164,ind_164 = find_ln2_and_calibrate(c2+1j*s2)
+K_158_all,K_158,ind_158 = find_ln2_and_calibrate(c1+1j*s1)
+
+print('Initializing third frame')
+plt.figure(3)
+plt.clf()
+plt.plot(K_thru_all, label="Demodulated THRU-AIN9"); print('1 done')
+plt.plot(K_182_all, label="Calibrated 182GHz-AIN8"); print('2 done')
+plt.plot(K_176_all, label="Calibrated 176GHz-AIN7"); print('3 done')
+plt.plot(K_170_all, label="Calibrated 170GHz-AIN6"); print('4 done')
+plt.plot(K_164_all, label="Calibrated 164GHz-AIN5"); print('5 done')
+plt.plot(K_158_all, label="Calibrated 158GHz-AIN4"); print('6 done')
+plt.legend()
+plt.xlabel('Samples per Second (7000 s^-1)')
+plt.ylabel('[K]')
+plt.title('Demodulated/Calibrated Radiometer Stream with Opto-Interrupter Reference')
+plt.show()
+print('Third frame done')
+# interpolate the demodulated data up to the full sample rate
+#i_thru = icos6[ind_thru]
+#K_thru_fullrate = np.interp(np.arange(np.min(i_thru),np.max(i_thru)),i_thru,K_thru)
+i_182 = icos5[ind_182]
+K_182_fullrate = np.interp(np.arange(np.min(i_182),np.max(i_182)),i_182,K_182)
+i_176 = icos4[ind_176]
+K_176_fullrate = np.interp(np.arange(np.min(i_176),np.max(i_176)),i_176,K_176)
+i_170 = icos3[ind_170]
+K_170_fullrate = np.interp(np.arange(np.min(i_170),np.max(i_170)),i_170,K_170)
+i_164 = icos2[ind_164]
+K_164_fullrate = np.interp(np.arange(np.min(i_164),np.max(i_164)),i_164,K_164)
+i_158 = icos1[ind_158]
+K_158_fullrate = np.interp(np.arange(np.min(i_158),np.max(i_158)),i_158,K_158)
+
+# find the minimum length of all of the final datasets
+minlen = np.min([len(K_182_fullrate),len(K_176_fullrate),len(K_170_fullrate),len(K_164_fullrate),len(K_158_fullrate),])
+
+# take power spectrum in KrtHz
+from amplitude_and_power_spectrum import amplitude_and_power_spectrum as psdit
+#pos_freq,psd_thru = psdit(K_thru_fullrate,1.0/2100.0)
+pos_freq,psd_182 = psdit(K_182_fullrate[0:minlen],1.0/2100.0)
+pos_freq,psd_176 = psdit(K_176_fullrate[0:minlen],1.0/2100.0)
+pos_freq,psd_170 = psdit(K_170_fullrate[0:minlen],1.0/2100.0)
+pos_freq,psd_164 = psdit(K_164_fullrate[0:minlen],1.0/2100.0)
+pos_freq,psd_158 = psdit(K_158_fullrate[0:minlen],1.0/2100.0)
+
+# find the low frequencies
+flo = np.where(pos_freq < 10)[0]
+flo = np.max(flo)
+
+# plot it
+print('Initializing final frame')
+plt.figure(100)
+plt.clf()
+plt.loglog(np.nan,np.nan,label='THRU'); print('1 done')
+plt.loglog(pos_freq[1:],1000.0*psd_182[1:]/np.sqrt(2),label='182 GHz: '+str(np.mean(1000.0*psd_182[1:flo]/np.sqrt(2)))[0:8]+' mKrts'); print('2 done')
+plt.loglog(pos_freq[1:],1000.0*psd_176[1:]/np.sqrt(2),label='176 GHz: '+str(np.mean(1000.0*psd_176[1:flo]/np.sqrt(2)))[0:8]+' mKrts'); print('3 done')
+plt.loglog(pos_freq[1:],1000.0*psd_170[1:]/np.sqrt(2),label='170 GHz: '+str(np.mean(1000.0*psd_170[1:flo]/np.sqrt(2)))[0:8]+' mKrts'); print('4 done')
+plt.loglog(pos_freq[1:],1000.0*psd_164[1:]/np.sqrt(2),label='164 GHz: '+str(np.mean(1000.0*psd_164[1:flo]/np.sqrt(2)))[0:8]+' mKrts'); print('5 done')
+plt.loglog(pos_freq[1:],1000.0*psd_158[1:]/np.sqrt(2),label='158 GHz: '+str(np.mean(1000.0*psd_158[1:flo]/np.sqrt(2)))[0:8]+' mKrts'); print('6 done')
+plt.xlabel('[Hz]')
+plt.ylabel('mKrts')
+plt.legend()
+plt.grid(True)
+print('Final frame done')
+
+
