@@ -283,7 +283,8 @@ for k in range (18000):
                                    f.write("\nData")
                                    x = int((i - 1)/7) #denominator number is particular to number of channels being streamed = numAddresses
                                    f.write("%x" %x) #notates the numbered list per stream readout
-                                   f_aData.write(str(aData)[1:-1]) #clipped ends take out brackets for data analysis
+                                   f_aData.write(str(aData)[1:-2]) #clipped ends take out brackets for data analysis
+                                   #additional clip result of occasional additional delimiter resulting in post-flight analysis error
                                    f_aData.write(',')  #data (byte 13-n)
                                    f.write("\n")
                                    ser.write(bytes(str(aData[0:7]).encode(encoding='ascii', errors='ignore')))
