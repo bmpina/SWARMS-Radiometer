@@ -1,0 +1,68 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import square_demod as s
+aData = np.loadtxt("2019_10_07-01_01_15PM-Radiometer-Stream.csv0", delimiter= ',') 
+plt.clf()   
+plt.ion()   
+plt.show()   
+plt.figure(1)
+print('Initializing reference frame')
+print(len(aData))
+aData = (aData)[:-1]
+
+cwd = os.getcwd()
+fileName = "-%s-Data.csv"%("Averaged-Radiometer") #play with idea of of having it in downloads or in a different seperate name
+filePath = os.path.join(cwd, fileName)
+
+###NOTATE THIS PRINTING SHOULD BE WRITTEN TO A FILE FOR AVERAGED DATA TO BE CONCATENATED###
+
+plt.plot((aData[0::7]), label="Opto"); print('chop done') #opto
+print(np.mean(aData[0::7]), " = opto mean")
+plt.plot((aData[1::7]), label="158GHz-AIN4"); print('1 done') #radiometer1(AIN4) --freq=
+print(np.mean(aData[1::7]), " = 158GHz mean")
+plt.plot((aData[2::7]), label="164GHz-AIN5"); print('2 done') #radiometer2(AIN5) --freq=
+print(np.mean(aData[2::7]), " = 164GHz mean")
+plt.plot((aData[3::7]), label="170GHz-AIN6"); print('3 done') #radiometer3(AIN6) --freq=
+print(np.mean(aData[3::7]), " = 170GHz mean")
+plt.plot((aData[4::7]), label="176GHz-AIN7"); print('4 done') #radiometer4(AIN7) --freq= 
+print(np.mean(aData[4::7]), " = 176GHz mean")
+plt.plot((aData[5::7]), label="182GHz-AIN8"); print('5 done') #radiometer5(AIN8) --freq=
+print(np.mean(aData[5::7]), " = 182GHz mean")
+plt.plot((aData[6::7]), label="THRU-AIN9"); print('6 done') #radiometer6(AIN9) --freq=
+print(np.mean(aData[6::7]), " = thru mean")
+plt.legend()
+plt.xlabel('Samples per Second per Channel (s^-1)')
+plt.ylabel('Voltage (V)')
+plt.title('Radiometer + Opto Stream')
+print('Reference frame done')
+with io.open(filePath, 'a') as f:   #, 'a'
+               try:
+                   f.write(np.mean(aData[1::7])) #158Ghz
+                   f.write(np.mean(aData[2::7])) #164Ghz
+                   f.write(np.mean(aData[3::7])) #170Ghz
+                   f.write(np.mean(aData[4::7])) #176Ghz
+                   f.write(np.mean(aData[5::7])) #182Ghz
+                   f.write(np.mean(aData[6::7])) #Through channel
+                   
+               except ljm.LJMError:
+                   ljme = sys.exc_info()[1]
+                   print(ljme)
+               except Exception:
+                   e = sys.exc_info()[1]
+                   print(e)
+               try:
+                   print("\nStop")  #completion self check
+                   break
+               except ljm.LJMError:
+                   ljme = sys.exc_info()[1]
+                   print(ljme)
+                   break
+               except Exception:
+                   e = sys.exc_info()[1]
+                   print(e)
+                   break
+
+
+ljm.cleanInterval(intervalHandle)
+ljm.close(handle)
+sys.exit()
