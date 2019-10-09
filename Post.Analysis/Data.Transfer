@@ -1,17 +1,19 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import square_demod as s
+import os
+import io
+import sys
 aData = np.loadtxt("2019_10_07-01_01_15PM-Radiometer-Stream.csv0", delimiter= ',') 
 plt.clf()   
 plt.ion()   
-plt.show()   
+plt.show()    
 plt.figure(1)
 print('Initializing reference frame')
 print(len(aData))
-aData = (aData)[:-1]
 
 cwd = os.getcwd()
-fileName = "-%s-Data.csv"%("Averaged-Radiometer") #play with idea of of having it in downloads or in a different seperate name
+fileName = "-%s-Data.csv"%("Averaged-Radiometer")
 filePath = os.path.join(cwd, fileName)
 
 ###NOTATE THIS PRINTING SHOULD BE WRITTEN TO A FILE FOR AVERAGED DATA TO BE CONCATENATED###
@@ -30,39 +32,33 @@ plt.plot((aData[5::7]), label="182GHz-AIN8"); print('5 done') #radiometer5(AIN8)
 print(np.mean(aData[5::7]), " = 182GHz mean")
 plt.plot((aData[6::7]), label="THRU-AIN9"); print('6 done') #radiometer6(AIN9) --freq=
 print(np.mean(aData[6::7]), " = thru mean")
+
 plt.legend()
 plt.xlabel('Samples per Second per Channel (s^-1)')
 plt.ylabel('Voltage (V)')
 plt.title('Radiometer + Opto Stream')
 print('Reference frame done')
+foo=1
+
 with io.open(filePath, 'a') as f:   #, 'a'
-               try:
-                   f.write(np.mean(aData[1::7])) #158Ghz
-                   f.write(np.mean(aData[2::7])) #164Ghz
-                   f.write(np.mean(aData[3::7])) #170Ghz
-                   f.write(np.mean(aData[4::7])) #176Ghz
-                   f.write(np.mean(aData[5::7])) #182Ghz
-                   f.write(np.mean(aData[6::7])) #Through channel
-                   
-               except ljm.LJMError:
-                   ljme = sys.exc_info()[1]
-                   print(ljme)
-               except Exception:
-                   e = sys.exc_info()[1]
-                   print(e)
-               try:
-                   print("\nStop")  #completion self check
-                   break
-               except ljm.LJMError:
-                   ljme = sys.exc_info()[1]
-                   print(ljme)
-                   break
-               except Exception:
-                   e = sys.exc_info()[1]
-                   print(e)
-                   break
-
-
-ljm.cleanInterval(intervalHandle)
-ljm.close(handle)
+    for fileName in filePath:
+        if foo == 1:
+            try:
+                f.write(str(np.mean(aData[1::7]))) #158Ghz
+                f.write(str(np.mean(aData[2::7]))) #164Ghz
+                f.write(str(np.mean(aData[3::7]))) #170Ghz
+                f.write(str(np.mean(aData[4::7]))) #176Ghz
+                f.write(str(np.mean(aData[5::7]))) #182Ghz
+                f.write(str(np.mean(aData[6::7]))) #Through channel
+            except Exception:
+                e = sys.exc_info()[1]
+                print(e)
+                break
+            try:
+                print("\nStop")  #completion self check
+                break
+            except Exception:
+                e = sys.exc_info()[1]
+                print(e)
+                break
 sys.exit()
