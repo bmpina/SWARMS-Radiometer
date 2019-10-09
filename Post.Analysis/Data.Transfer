@@ -13,7 +13,7 @@ print('Initializing reference frame')
 print(len(aData))
 
 cwd = os.getcwd()
-fileName = "-%s-Data.csv"%("Averaged-Radiometer")
+fileName = "%s-Data.csv"%("Averaged-Radiometer")
 filePath = os.path.join(cwd, fileName)
 
 ###NOTATE THIS PRINTING SHOULD BE WRITTEN TO A FILE FOR AVERAGED DATA TO BE CONCATENATED###
@@ -45,11 +45,17 @@ with io.open(filePath, 'a') as f:   #, 'a'
         if foo == 1:
             try:
                 f.write(str(np.mean(aData[1::7]))) #158Ghz
+                f.write(',')
                 f.write(str(np.mean(aData[2::7]))) #164Ghz
+                f.write(',')
                 f.write(str(np.mean(aData[3::7]))) #170Ghz
+                f.write(',')
                 f.write(str(np.mean(aData[4::7]))) #176Ghz
+                f.write(',')
                 f.write(str(np.mean(aData[5::7]))) #182Ghz
+                f.write(',')
                 f.write(str(np.mean(aData[6::7]))) #Through channel
+                f.write(',')
             except Exception:
                 e = sys.exc_info()[1]
                 print(e)
